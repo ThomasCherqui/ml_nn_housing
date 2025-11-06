@@ -226,8 +226,8 @@ class LinearLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        self._W = None
-        self._b = None
+        self._W = np.array(xavier_init(size=(n_in, n_out)))
+        self._b = np.array(xavier_init(size=(n_out)))
 
         self._cache_current = None
         self._grad_W_current = None
@@ -253,9 +253,10 @@ class LinearLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        y = self._W*x + self._b
-        self._cache_current = None
-
+        y = x @ self.W + self._b
+    
+        self._cache_current = x
+        
         return y
 
         #######################################################################
@@ -280,6 +281,15 @@ class LinearLayer(Layer):
         #                       ** START OF YOUR CODE **
         #######################################################################
         
+        #Calculate d(Loss)/d(b) = d(Loss)/d(Z) * d(Z)/d(b) 
+        self._grad_b_current = np.sum(grad_z, axis=0)
+
+        #Calculate d(Loss)/d(W) = d(Loss)/d(Z) * d(Z)/d(W) 
+        self._grad_W_current = grad_z @ self._cache_current.T
+
+        #Calculate d(Loss)/d(x) = d(Loss)/d(Z) * d(Z)/d(x) 
+        return grad_z @ self._W.T
+
 
 
         #######################################################################
@@ -297,7 +307,10 @@ class LinearLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        
+        self._W = self._W -learning_rate*self._grad_W_current
+        self._b = self._b -learning_rate*self._grad_b_current
+
 
         #######################################################################
         #                       ** END OF YOUR CODE **
