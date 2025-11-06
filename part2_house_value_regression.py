@@ -189,6 +189,34 @@ def perform_hyperparameter_search():
     #######################################################################
 
 
+# Determines which features are categorical and re
+def one_hot_encode(data:pd.DataFrame):
+    
+    categorical_features = data.select_dtypes(exclude=[np.number]).columns.tolist()
+    returnArray = data
+    for ftr in categorical_features:
+        uniqueList = np.unique(data[ftr])
+        for val in uniqueList:
+            colName = ftr + str(val)
+            def row_lambda(row):
+                if row[ftr] == val:
+                    return 1
+                else:  
+                    return 0
+            returnArray[colName] = returnArray.apply(row_lambda, axis=1)
+        returnArray = returnArray.drop(columns=[ftr])
+    
+
+    return returnArray
+
+def impute_missing_data(data, method='mean'):
+    if method == "mean":
+        data =  data.fillna(data.mean)
+    if method == "median":
+        data =  data.fillna(data.mean)
+
+    return data
+
 
 def example_main():
 
@@ -198,6 +226,11 @@ def example_main():
     # Feel free to use another CSV reader tool
     # But remember that LabTS tests take Pandas DataFrame as inputs
     data = pd.read_csv("housing.csv") 
+    
+    features = None
+    data = one_hot_encode(features, data)
+    data = impute_missing_data(data, "mean")
+    
 
     # Splitting input and output
     x_train = data.loc[:, data.columns != output_label]
