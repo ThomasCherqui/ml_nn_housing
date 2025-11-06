@@ -330,8 +330,8 @@ class MultiLayerNetwork:
         Arguments:
             - input_dim {int} -- Number of features in the input (excluding 
                 the batch dimension).
-            - neurons {list} -- Number of neurons in each linear layer 
-                represented as a list. The length of the list determines the 
+            - neurons {list} -- Number of neurons in each linear layer 
+                represented as a list. The length of the list determines the 
                 number of linear layers.
             - activations {list} -- List of the activation functions to apply 
                 to the output of each linear layer.
@@ -343,7 +343,32 @@ class MultiLayerNetwork:
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        self._layers = None
+        self._layers = []
+
+        for layer_num in range(len(neurons)):
+            if layer_num == 0: #Output is 1d for final layer?
+                    linear_layer = LinearLayer(input_dim, neurons[layer_num])
+            else:
+                linear_layer = LinearLayer(neurons[layer_num-1], neurons[layer_num])
+            
+            activation = activations[layer_num]
+
+            if activation == 'relu':
+                activation_for_layer = ReluLayer()
+
+            elif activation == 'sigmoid':
+                activation_for_layer = SigmoidLayer()
+
+            elif activation == 'identity':
+                raise TypeError('Need to implement')
+            
+            else: 
+                raise  TypeError('Invalid Activation Function')
+            
+            self._layers.append((linear_layer, activation_for_layer))
+
+
+
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -362,7 +387,12 @@ class MultiLayerNetwork:
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        return np.zeros((1, self.neurons[-1])) # Replace with your own code
+
+
+        for layer, activation in self._layers:
+            x = activation.forward((layer.forward(x)))
+
+        return x 
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -386,7 +416,12 @@ class MultiLayerNetwork:
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        
+        for layer, activation in reversed(self._layers):
+            grad_z = layer.backward((activation.backward(grad_z)))
+        
+        return grad_z
+
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -403,7 +438,11 @@ class MultiLayerNetwork:
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        
+        for layer, activation in self._layers:
+            layer.update_params(learning_rate)
+            
+        
 
         #######################################################################
         #                       ** END OF YOUR CODE **
