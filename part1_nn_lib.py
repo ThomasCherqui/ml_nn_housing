@@ -92,6 +92,15 @@ class CrossEntropyLossLayer(Layer):
         n_obs = len(y_target)
         return -1 / n_obs * (y_target - probs)
 
+class IdentityLayer(Layer): # just added 
+    def __init__(self, *args, **kwargs):
+        pass
+        
+    def forward(self, x):
+        return x
+    
+    def backward(self, grad_z):
+        return grad_z
 
 class SigmoidLayer(Layer):
     """
@@ -120,7 +129,10 @@ class SigmoidLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        
+        z = 1/(1 + np.exp(-x))
+        self._cache_current = z
+        return z
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -143,7 +155,10 @@ class SigmoidLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        
+        sigmoid_output = self._cache_current
+        derivative = sigmoid_output * (1 - sigmoid_output)
+        return grad_z * derivative
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -177,7 +192,10 @@ class ReluLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        
+        relu_output = np.maximum(0, x)
+        self._cache_current = x
+        return relu_output
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -200,7 +218,10 @@ class ReluLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        
+        relu_output = self._cache_current
+        derivative = np.where(relu_output > 0, 1, 0)
+        return grad_z * derivative
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -253,8 +274,10 @@ class LinearLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        y = x @ self.W + self._b
-    
+        if x.ndim == 1:
+            x = x[np.newaxis, :]
+            
+        y = x @ self._W + self._b
         self._cache_current = x
         
         return y
@@ -281,16 +304,16 @@ class LinearLayer(Layer):
         #                       ** START OF YOUR CODE **
         #######################################################################
         
+        m = grad_z.shape[0] #batch size
+        
         #Calculate d(Loss)/d(b) = d(Loss)/d(Z) * d(Z)/d(b) 
-        self._grad_b_current = np.sum(grad_z, axis=0)
+        self._grad_b_current = np.sum(grad_z, axis=0) / m
 
         #Calculate d(Loss)/d(W) = d(Loss)/d(Z) * d(Z)/d(W) 
-        self._grad_W_current = grad_z @ self._cache_current.T
+        self._grad_W_current = self._cache_current.T @ grad_z / m 
 
         #Calculate d(Loss)/d(x) = d(Loss)/d(Z) * d(Z)/d(x) 
         return grad_z @ self._W.T
-
-
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -360,7 +383,8 @@ class MultiLayerNetwork:
                 activation_for_layer = SigmoidLayer()
 
             elif activation == 'identity':
-                raise TypeError('Need to implement')
+                activation_for_layer = IdentityLayer()
+                #raise TypeError('Need to implement')
             
             else: 
                 raise  TypeError('Invalid Activation Function')
@@ -422,7 +446,6 @@ class MultiLayerNetwork:
         
         return grad_z
 
-
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -439,11 +462,9 @@ class MultiLayerNetwork:
         #                       ** START OF YOUR CODE **
         #######################################################################
         
-        for layer, activation in self._layers:
+        for layer, _ in self._layers:
             layer.update_params(learning_rate)
             
-        
-
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -503,7 +524,13 @@ class Trainer:
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        self._loss_layer = None
+        if loss_fun == "mse":
+            self._loss_layer = MSELossLayer()
+        elif loss_fun == "cross_entropy":
+            self._loss_layer = CrossEntropyLossLayer()
+        else:
+            raise ValueError("Unknown loss function {}".format(loss_fun))
+    
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -526,7 +553,9 @@ class Trainer:
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        
+        perm = np.random.permutation(len(input_dataset))
+        return input_dataset[perm], target_dataset[perm]
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -555,7 +584,23 @@ class Trainer:
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        
+        for epoch in range(self.nb_epoch):
+            if self.shuffle_flag == True :
+                X,Y = self.shuffle(input_dataset,target_dataset)
+            else : 
+                X,Y = input_dataset,target_dataset
+            
+            batches_X = [X[i:i+self.batch_size] for i in range(0, len(X), self.batch_size)]
+            batches_Y = [Y[i:i+self.batch_size] for i in range(0, len(Y), self.batch_size)]
+
+            for batch_X, batch_Y in zip(batches_X, batches_Y):
+                batch_Y_estimated = self.network.forward(batch_X)
+                
+                loss = self._loss_layer.forward(batch_Y_estimated, batch_Y)
+                grad_loss = self._loss_layer.backward()
+                self.network.backward(grad_loss)
+                self.network.update_params(self.learning_rate)
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -578,7 +623,7 @@ class Trainer:
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        return self._loss_layer.forward(self.network.forward(input_dataset), target_dataset)
 
         #######################################################################
         #                       ** END OF YOUR CODE **
