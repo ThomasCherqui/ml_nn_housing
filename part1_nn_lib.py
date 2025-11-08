@@ -248,7 +248,7 @@ class LinearLayer(Layer):
         #                       ** START OF YOUR CODE **
         #######################################################################
         self._W = np.array(xavier_init(size=(n_in, n_out)))
-        self._b = np.array(xavier_init(size=(n_out)))
+        self._b = np.array(xavier_init(size=(1,n_out)))
 
         self._cache_current = None
         self._grad_W_current = None
@@ -274,8 +274,6 @@ class LinearLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        if x.ndim == 1:
-            x = x[np.newaxis, :]
             
         y = x @ self._W + self._b
         self._cache_current = x
@@ -304,13 +302,11 @@ class LinearLayer(Layer):
         #                       ** START OF YOUR CODE **
         #######################################################################
         
-        m = grad_z.shape[0] #batch size
-        
         #Calculate d(Loss)/d(b) = d(Loss)/d(Z) * d(Z)/d(b) 
-        self._grad_b_current = np.sum(grad_z, axis=0) / m
+        self._grad_b_current = np.sum(grad_z, axis=0, keepdims=True)
 
         #Calculate d(Loss)/d(W) = d(Loss)/d(Z) * d(Z)/d(W) 
-        self._grad_W_current = self._cache_current.T @ grad_z / m 
+        self._grad_W_current = self._cache_current.T @ grad_z
 
         #Calculate d(Loss)/d(x) = d(Loss)/d(Z) * d(Z)/d(x) 
         return grad_z @ self._W.T
@@ -585,16 +581,16 @@ class Trainer:
         #                       ** START OF YOUR CODE **
         #######################################################################
         
-        for epoch in range(self.nb_epoch):
-            if self.shuffle_flag == True :
+        for _ in range(self.nb_epoch):
+            if self.shuffle_flag :
                 X,Y = self.shuffle(input_dataset,target_dataset)
             else : 
                 X,Y = input_dataset,target_dataset
-            
-            batches_X = [X[i:i+self.batch_size] for i in range(0, len(X), self.batch_size)]
-            batches_Y = [Y[i:i+self.batch_size] for i in range(0, len(Y), self.batch_size)]
 
-            for batch_X, batch_Y in zip(batches_X, batches_Y):
+            for i in range (0, len(X), self.batch_size):
+                batch_X = X[i:i+self.batch_size]
+                batch_Y = Y[i:i+self.batch_size]
+                
                 batch_Y_estimated = self.network.forward(batch_X)
                 
                 loss = self._loss_layer.forward(batch_Y_estimated, batch_Y)
