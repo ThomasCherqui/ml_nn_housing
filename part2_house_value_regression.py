@@ -7,7 +7,7 @@ from part1_nn_lib import MultiLayerNetwork, Trainer
 
 class Regressor:
 
-    def __init__(self, x, nb_epoch = 1000):
+    def __init__(self, x, nb_epoch = 100):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -30,7 +30,13 @@ class Regressor:
         self.input_size = X.shape[1]
         self.output_size = 1
         self.nb_epoch = nb_epoch 
-        return
+
+        # Define a simple MLP for regression
+        self.network = MultiLayerNetwork(
+            input_dim=self.input_size,
+            neurons=[32, 16, self.output_size],
+            activations=["relu", "sigmoid"] 
+        )
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -122,9 +128,10 @@ class Regressor:
         #                       ** START OF YOUR CODE **
         #######################################################################
 
-        X, _ = self._preprocessor(x, training = False) # Do not forget
-        pass
-
+        X, _ = self._preprocessor(x, training=False)
+        predictions = self.network.forward(X)
+        
+        return predictions
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
