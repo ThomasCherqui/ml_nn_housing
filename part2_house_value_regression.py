@@ -56,7 +56,6 @@ class Regressor:
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-
         # Replace this code with your own
         # Return preprocessed x and y, return None for y if it was None
         return x, (y if isinstance(y, pd.DataFrame) else None)
@@ -189,33 +188,7 @@ def perform_hyperparameter_search():
     #######################################################################
 
 
-# Determines which features are categorical and re
-def one_hot_encode(data:pd.DataFrame):
-    
-    categorical_features = data.select_dtypes(exclude=[np.number]).columns.tolist()
-    returnArray = data
-    for ftr in categorical_features:
-        uniqueList = np.unique(data[ftr])
-        for val in uniqueList:
-            colName = ftr + str(val)
-            def row_lambda(row):
-                if row[ftr] == val:
-                    return 1
-                else:  
-                    return 0
-            returnArray[colName] = returnArray.apply(row_lambda, axis=1)
-        returnArray = returnArray.drop(columns=[ftr])
-    
 
-    return returnArray
-
-def impute_missing_data(data, method='mean'):
-    if method == "mean":
-        data =  data.fillna(data.mean)
-    if method == "median":
-        data =  data.fillna(data.mean)
-
-    return data
 
 
 def example_main():
@@ -225,12 +198,11 @@ def example_main():
     # Use pandas to read CSV data as it contains various object types
     # Feel free to use another CSV reader tool
     # But remember that LabTS tests take Pandas DataFrame as inputs
-    data = pd.read_csv("housing.csv") 
-    
-    features = None
-    data = one_hot_encode(features, data)
+    data = pd.read_csv("housing.csv")
+    #Preprocessing
     data = impute_missing_data(data, "mean")
-    
+    data = one_hot_encode(data)
+    data = normalize_numerical(data)
 
     # Splitting input and output
     x_train = data.loc[:, data.columns != output_label]
@@ -251,4 +223,3 @@ def example_main():
 
 if __name__ == "__main__":
     example_main()
-
