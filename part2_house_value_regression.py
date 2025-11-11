@@ -2,6 +2,8 @@ import torch
 import pickle
 import numpy as np
 import pandas as pd
+from part1_nn_lib import MultiLayerNetwork, Trainer
+
 
 class Regressor:
 
@@ -83,7 +85,19 @@ class Regressor:
         #                       ** START OF YOUR CODE **
         #######################################################################
 
-        X, Y = self._preprocessor(x, y = y, training = True) # Do not forget
+        X, Y = self._preprocessor(x, y = y, training = True)
+
+        # Use the Trainer class
+        self.trainer = Trainer(
+            network=self.network,
+            batch_size=64,
+            nb_epoch=self.nb_epoch,
+            learning_rate=0.01,
+            loss_fun="mse",
+            shuffle_flag=True
+        )
+
+        self.trainer.train(X, Y)
         return self
 
         #######################################################################
