@@ -35,7 +35,7 @@ class Regressor:
         self.network = MultiLayerNetwork(
             input_dim=self.input_size,
             neurons=[32, 16, self.output_size],
-            activations=["relu", "sigmoid"] 
+            activations=["relu", "identity"]
         )
 
         #######################################################################
@@ -155,7 +155,8 @@ class Regressor:
         #######################################################################
 
         X, Y = self._preprocessor(x, y = y, training = False) # Do not forget
-        return 0 # Replace this code with your own
+        accuracy = self.trainer.eval_loss(X, Y)
+        return accuracy
 
         #######################################################################
         #                       ** END OF YOUR CODE **
