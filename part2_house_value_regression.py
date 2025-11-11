@@ -133,7 +133,7 @@ class Regressor:
         X, _ = self._preprocessor(x, training=False)
         predictions = self.network.forward(X)
         
-        return predictions
+        return np.array(predictions)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -157,8 +157,20 @@ class Regressor:
         #######################################################################
 
         X, Y = self._preprocessor(x, y = y, training = False) # Do not forget
-        accuracy = self.trainer.eval_loss(X, Y)
-        return accuracy
+        y_pred = self.predict(X)
+
+        # Compute Mean Squared Error (MSE)
+        mse = np.mean((Y - y_pred) ** 2)
+
+        # Compute Mean Absolute Error (MAE)
+        mae = np.mean(np.abs(Y - y_pred))
+
+        # Compute R-squared (R²)
+        ss_res = np.sum((Y - y_pred) ** 2)
+        ss_tot = np.sum((Y - np.mean(Y)) ** 2)
+        R2 = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0.0
+
+        return mse, mae, R2
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -250,10 +262,9 @@ def main():
     
     save_regressor(best_regressor)
 
-    # Error
-    error = best_regressor.score(X_test, y_test)
-
-    print(f"\nRegressor error: {error}\n")
+    # Metrics
+    mse, mae, R2 = best_regressor.score(X_test, y_test)
+    print(f"\nMSE: {mse:.4f}, MAE: {mae:.4f}, R²: {R2:.4f}\n")
 
 
 if __name__ == "__main__":
