@@ -3,11 +3,11 @@ import pickle
 import numpy as np
 import pandas as pd
 from part1_nn_lib import MultiLayerNetwork, Trainer
-
+from sklearn.model_selection import GridSearchCV, train_test_split
 
 class Regressor:
 
-    def __init__(self, x, nb_epoch = 100):
+    def __init__(self, x, lr=1e-3, bs=16, nb_epoch = 100):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -30,6 +30,8 @@ class Regressor:
         self.input_size = X.shape[1]
         self.output_size = 1
         self.nb_epoch = nb_epoch 
+        self.bs = bs
+        self.lr = lr
 
         # Define a simple MLP for regression
         self.network = MultiLayerNetwork(
@@ -96,9 +98,9 @@ class Regressor:
         # Use the Trainer class
         self.trainer = Trainer(
             network=self.network,
-            batch_size=64,
+            batch_size=self.bs,
             nb_epoch=self.nb_epoch,
-            learning_rate=0.01,
+            learning_rate=self.lr,
             loss_fun="mse",
             shuffle_flag=True
         )
@@ -184,7 +186,7 @@ def load_regressor():
 
 
 
-def perform_hyperparameter_search(): 
+def perform_hyperparameter_search(X_train, y_train): 
     # Ensure to add whatever inputs you deem necessary to this function
     """
     Performs a hyper-parameter for fine-tuning the regressor implemented 
@@ -202,7 +204,21 @@ def perform_hyperparameter_search():
     #                       ** START OF YOUR CODE **
     #######################################################################
 
-    return  # Return the chosen hyper parameters
+
+    NN_model = Regressor()
+
+    parameter_grid = {
+        'lr': [1e-4, 3e-4, 1e-3, 3e-3, 1e-2],
+        'bs': [16, 32, 64, 128],
+        'epochs':[80, 90, 100]
+    }
+
+    param_grid = GridSearchCV(NN_model, parameter_grid)
+
+    param_grid.fit(X_train, y_train)
+
+
+    return param_grid.best_params_, parameter_grid.best_estimator_, parameter_grid.cv_results
 
     #######################################################################
     #                       ** END OF YOUR CODE **
@@ -212,7 +228,7 @@ def perform_hyperparameter_search():
 
 
 
-def example_main():
+def main():
 
     output_label = "median_house_value"
 
@@ -220,27 +236,24 @@ def example_main():
     # Feel free to use another CSV reader tool
     # But remember that LabTS tests take Pandas DataFrame as inputs
     data = pd.read_csv("housing.csv")
-    #Preprocessing
-    data = impute_missing_data(data, "mean")
-    data = one_hot_encode(data)
-    data = normalize_numerical(data)
+    
 
     # Splitting input and output
-    x_train = data.loc[:, data.columns != output_label]
-    y_train = data.loc[:, [output_label]]
+    X = data.loc[:, data.columns != output_label]
+    y  = data.loc[:, [output_label]]
 
-    # Training
-    # This example trains on the whole available dataset. 
-    # You probably want to separate some held-out data 
-    # to make sure the model isn't overfitting
-    regressor = Regressor(x_train, nb_epoch = 10)
-    regressor.fit(x_train, y_train)
-    save_regressor(regressor)
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    best_params, best_regressor, cv_results = perform_hyperparameter_search(X_train, y_train)
+    
+    save_regressor(best_regressor)
 
     # Error
-    error = regressor.score(x_train, y_train)
+    error = best_regressor.score(X_test, y_test)
+
     print(f"\nRegressor error: {error}\n")
 
 
 if __name__ == "__main__":
-    example_main()
+    main()

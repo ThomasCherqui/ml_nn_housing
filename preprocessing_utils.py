@@ -21,19 +21,3 @@ def normalize_numerical(data:pd.DataFrame):
             normalized_data[col] = 0.0
     return normalized_data
 
-# Determines which features are categorical and re
-def one_hot_encode(data:pd.DataFrame):
-    categorical_features = data.select_dtypes(exclude=[np.number]).columns.tolist()
-    returnArray = data
-    for ftr in categorical_features:
-        uniqueList = np.unique(data[ftr])
-        for val in uniqueList:
-            colName = ftr + str(val)
-            def row_lambda(row):
-                if row[ftr] == val:
-                    return 1
-                else:  
-                    return 0
-            returnArray[colName] = returnArray.apply(row_lambda, axis=1)
-        returnArray = returnArray.drop(columns=[ftr])
-    return returnArray
