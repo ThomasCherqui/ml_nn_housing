@@ -2,11 +2,12 @@ import torch
 import pickle
 import numpy as np
 import pandas as pd
-import sklearn as sk
+from part1_nn_lib import MultiLayerNetwork, Trainer
+from sklearn.model_selection import GridSearchCV, train_test_split
 
 class Regressor:
 
-    def __init__(self, x, nb_epoch = 1000):
+    def __init__(self, x, lr=1e-3, bs=16, nb_epoch = 100):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -30,7 +31,15 @@ class Regressor:
         self.input_size = X.shape[1]
         self.output_size = 1
         self.nb_epoch = nb_epoch 
-        return
+        self.bs = bs
+        self.lr = lr
+
+        # Define a simple MLP for regression
+        self.network = MultiLayerNetwork(
+            input_dim=self.input_size,
+            neurons=[32, 16, self.output_size],
+            activations=["relu", "identity"]
+        )
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -127,7 +136,19 @@ class Regressor:
         #                       ** START OF YOUR CODE **
         #######################################################################
 
-        X, Y = self._preprocessor(x, y = y, training = True) # Do not forget
+        X, Y = self._preprocessor(x, y = y, training = True)
+
+        # Use the Trainer class
+        self.trainer = Trainer(
+            network=self.network,
+            batch_size=self.bs,
+            nb_epoch=self.nb_epoch,
+            learning_rate=self.lr,
+            loss_fun="mse",
+            shuffle_flag=True
+        )
+
+        self.trainer.train(X, Y)
         return self
 
         #######################################################################
@@ -152,9 +173,10 @@ class Regressor:
         #                       ** START OF YOUR CODE **
         #######################################################################
 
-        X, _ = self._preprocessor(x, training = False) # Do not forget
-        pass
-
+        X, _ = self._preprocessor(x, training=False)
+        predictions = self.network.forward(X)
+        
+        return np.array(predictions)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -178,7 +200,20 @@ class Regressor:
         #######################################################################
 
         X, Y = self._preprocessor(x, y = y, training = False) # Do not forget
-        return 0 # Replace this code with your own
+        y_pred = self.predict(X)
+
+        # Compute Mean Squared Error (MSE)
+        mse = np.mean((Y - y_pred) ** 2)
+
+        # Compute Mean Absolute Error (MAE)
+        mae = np.mean(np.abs(Y - y_pred))
+
+        # Compute R-squared (R²)
+        ss_res = np.sum((Y - y_pred) ** 2)
+        ss_tot = np.sum((Y - np.mean(Y)) ** 2)
+        R2 = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0.0
+
+        return mse, mae, R2
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -206,7 +241,8 @@ def load_regressor():
     return trained_model
 
 
-def perform_hyperparameter_search(): 
+
+def perform_hyperparameter_search(X_train, y_train): 
     # Ensure to add whatever inputs you deem necessary to this function
     """
     Performs a hyper-parameter for fine-tuning the regressor implemented 
@@ -224,7 +260,21 @@ def perform_hyperparameter_search():
     #                       ** START OF YOUR CODE **
     #######################################################################
 
-    return  # Return the chosen hyper parameters
+
+    NN_model = Regressor()
+
+    parameter_grid = {
+        'lr': [1e-4, 3e-4, 1e-3, 3e-3, 1e-2],
+        'bs': [16, 32, 64, 128],
+        'epochs':[80, 90, 100]
+    }
+
+    param_grid = GridSearchCV(NN_model, parameter_grid)
+
+    param_grid.fit(X_train, y_train)
+
+
+    return param_grid.best_params_, parameter_grid.best_estimator_, parameter_grid.cv_results
 
     #######################################################################
     #                       ** END OF YOUR CODE **
@@ -232,7 +282,9 @@ def perform_hyperparameter_search():
 
 
 
-def example_main():
+
+
+def main():
 
     output_label = "median_house_value"
 
@@ -241,25 +293,22 @@ def example_main():
     # But remember that LabTS tests take Pandas DataFrame as inputs
     data = pd.read_csv("housing.csv")
     
+
     # Splitting input and output
-    x_train = data.loc[:, data.columns != output_label]
-    y_train = data.loc[:, [output_label]]
+    X = data.loc[:, data.columns != output_label]
+    y  = data.loc[:, [output_label]]
 
-    regressor = Regressor(x_train, nb_epoch = 10)
-    x,y = regressor._preprocessor(x_train, y_train, training=True)
-    print(x)
-    # Training
-    # This example trains on the whole available dataset. 
-    # You probably want to separate some held-out data 
-    # to make sure the model isn't overfitting
-    regressor = Regressor(x_train, nb_epoch = 10)
-    regressor.fit(x_train, y_train)
-    save_regressor(regressor)
 
-    # Error
-    error = regressor.score(x_train, y_train)
-    print(f"\nRegressor error: {error}\n")
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    best_params, best_regressor, cv_results = perform_hyperparameter_search(X_train, y_train)
+    
+    save_regressor(best_regressor)
+
+    # Metrics
+    mse, mae, R2 = best_regressor.score(X_test, y_test)
+    print(f"\nMSE: {mse:.4f}, MAE: {mae:.4f}, R²: {R2:.4f}\n")
 
 
 if __name__ == "__main__":
-    example_main()
+    main()
