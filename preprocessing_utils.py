@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 def impute_missing_data(data, method='mean'):
     if method == "mean":

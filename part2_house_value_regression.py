@@ -2,6 +2,7 @@ import torch
 import pickle
 import numpy as np
 import pandas as pd
+import sklearn as sk
 
 class Regressor:
 
@@ -25,6 +26,7 @@ class Regressor:
 
         # Replace this code with your own
         X, _ = self._preprocessor(x, training = True)
+
         self.input_size = X.shape[1]
         self.output_size = 1
         self.nb_epoch = nb_epoch 
@@ -52,17 +54,59 @@ class Regressor:
               size (batch_size, 1).
             
         """
-
+        
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
         # Replace this code with your own
         # Return preprocessed x and y, return None for y if it was None
-        return x, (y if isinstance(y, pd.DataFrame) else None)
+
+        from sklearn.preprocessing import LabelBinarizer, StandardScaler
+
+        x_processed = x.copy()
+        y_processed = y.copy() if y is not None else None
+
+
+        if training:
+            self.fill_values_ = x_processed.mean(numeric_only=True)
+        x_processed = x_processed.fillna(self.fill_values_)
+
+        num_cols = x_processed.select_dtypes(include=[np.number]).columns.tolist()
+        cat_cols = x_processed.select_dtypes(exclude=[np.number]).columns.tolist()
+
+        if training:
+            # One hot part, managing a list in case there are multiple categorical columns
+
+            col = cat_cols[0] 
+            lb = LabelBinarizer()
+            lb.fit(x_processed[col].astype(str))
+            encoded = lb.transform(x_processed[col].astype(str))
+            encoded_df = pd.DataFrame(encoded, columns=[f"{col}_{cls}" for cls in lb.classes_])
+
+            self.lb = lb #save for testing part
+            x_processed = pd.concat([x_processed[num_cols].reset_index(drop=True)] + [encoded_df], axis=1)
+
+        else:
+            col = cat_cols[0]
+            lb = self.lb
+            encoded = lb.transform(x_processed[col].astype(str))
+            encoded_df = pd.DataFrame(encoded, columns=[f"{col}_{cls}" for cls in lb.classes_])
+            x_processed = pd.concat([x_processed[num_cols].reset_index(drop=True)] + [encoded_df], axis=1)
+
+        if training:
+            self.scaler_ = StandardScaler()
+            self.scaler_.fit(x_processed)
+            x_processed[:] = self.scaler_.transform(x_processed)
+        else:
+            x_processed[:] = self.scaler_.transform(x_processed)
+
+        return x_processed, y_processed
+            
 
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
+
 
         
     def fit(self, x, y):
@@ -162,7 +206,6 @@ def load_regressor():
     return trained_model
 
 
-
 def perform_hyperparameter_search(): 
     # Ensure to add whatever inputs you deem necessary to this function
     """
@@ -189,8 +232,6 @@ def perform_hyperparameter_search():
 
 
 
-
-
 def example_main():
 
     output_label = "median_house_value"
@@ -199,15 +240,14 @@ def example_main():
     # Feel free to use another CSV reader tool
     # But remember that LabTS tests take Pandas DataFrame as inputs
     data = pd.read_csv("housing.csv")
-    #Preprocessing
-    data = impute_missing_data(data, "mean")
-    data = one_hot_encode(data)
-    data = normalize_numerical(data)
-
+    
     # Splitting input and output
     x_train = data.loc[:, data.columns != output_label]
     y_train = data.loc[:, [output_label]]
 
+    regressor = Regressor(x_train, nb_epoch = 10)
+    x,y = regressor._preprocessor(x_train, y_train, training=True)
+    print(x)
     # Training
     # This example trains on the whole available dataset. 
     # You probably want to separate some held-out data 
