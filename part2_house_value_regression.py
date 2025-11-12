@@ -114,6 +114,7 @@ class Regressor:
         return np.array(x_final, dtype=float), y_array
 
             
+
     def fit(self, x, y):
         """
         Regressor training function
@@ -127,27 +128,21 @@ class Regressor:
             self {Regressor} -- Trained model.
 
         """
-
-        #######################################################################
-        #                       ** START OF YOUR CODE **
-        #######################################################################
-
-    def fit(self, x, y):
-        # Préprocessing training
+        # Preprocessing
         X, Y = self._preprocessor(x, y=y, training=True)
 
-        # Définir input_size après préprocessing
+        # Define input size AFTER preprocessing
         self.input_size = X.shape[1]
         self.output_size = 1
 
-        # Initialiser le réseau
+        # Initialize the NN network once the data is preprocessed
         self.network = MultiLayerNetwork(
             input_dim=self.input_size,
             neurons=[32, 16, self.output_size],
             activations=["relu", "relu", "identity"]
         )
 
-        # Entraînement
+        # Training
         self.trainer = Trainer(
             network=self.network,
             batch_size=self.bs,
@@ -159,10 +154,6 @@ class Regressor:
         self.trainer.train(X, Y)
         return self
 
-
-        #######################################################################
-        #                       ** END OF YOUR CODE **
-        #######################################################################
 
             
     def predict(self, x):
