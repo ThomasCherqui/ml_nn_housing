@@ -261,7 +261,7 @@ def perform_hyperparameter_search(X_train, y_train):
     #######################################################################
 
 
-    NN_model = Regressor()
+    NN_model = Regressor(X_train)
 
     parameter_grid = {
         'lr': [1e-4, 3e-4, 1e-3, 3e-3, 1e-2],
