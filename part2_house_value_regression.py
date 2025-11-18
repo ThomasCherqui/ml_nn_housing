@@ -88,7 +88,7 @@ class Regressor:
 
         # Fill missing numeric values with the median value if training, with zero if not
         if training:
-            x[num_cols] = x[num_cols].fillna(x[num_cols].median())
+            x.loc[:, num_cols] = x[num_cols].fillna(x[num_cols].median())
             y = y.fillna(y.median()) if y is not None else None
             
         else:
@@ -99,7 +99,7 @@ class Regressor:
         # One-hot encoding for the categorical values if it's training - and if it is not apply the same mapping      
         cat_col = 'ocean_proximity'
         if training:
-            x[cat_col] = x[cat_col].fillna(x[cat_col].mode()[0])
+            x.loc[:, cat_col] = x[cat_col].fillna(x[cat_col].mode()[0])
             # Fit encoder
             self.lb.fit(x[cat_col].astype(str))
         else:
