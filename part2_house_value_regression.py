@@ -55,8 +55,6 @@ class Regressor:
         # Initiliase the optimizer and the loss function
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
         self.loss_fn = nn.MSELoss() #it is a regression
-        
-        #
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -85,6 +83,7 @@ class Regressor:
         #                       ** START OF YOUR CODE **
         #######################################################################
 
+        # 
         x = x.copy()
         if y is not None : 
             y = y.copy()
@@ -95,14 +94,14 @@ class Regressor:
         # Fill missing numeric values with the median value if training, with zero if not
         if training:
             x.loc[:, num_cols] = x[num_cols].fillna(x[num_cols].median())
-            y = y.fillna(y.median()) if y is not None else None
-            
+            y = y.fillna(y.median()) if y is not None else None   
         else:
             x.loc[:, num_cols] = x[num_cols].fillna(0)
             y = y.fillna(0) if y is not None else None
 
         # Fill missing categorical values (cat_col) with the None value
-        # One-hot encoding for the categorical values if it's training - and if it is not apply the same mapping      
+        # One-hot encoding for the categorical values if it's training - and if it is not apply the same mapping 
+             
         cat_col = 'ocean_proximity'
         if training:
             x.loc[:, cat_col] = x[cat_col].fillna(x[cat_col].mode()[0])
@@ -118,7 +117,7 @@ class Regressor:
         encoded = self.lb.transform(x[cat_col].astype(str))
         x = x.drop(columns=[cat_col])
         
-        # Scale the X and Y - keep track of the Scaler for the post-training preprocessing
+        # Scale the X and Y - keep track of the Scaler for the post-training preprocessing, if training apply Scaler if it is not apply the same mapping 
         if training:
             x = self.x_scaler.fit_transform(x)
             y = self.y_scaler.fit_transform(y) if y is not None else None
@@ -158,9 +157,10 @@ class Regressor:
         #                       ** START OF YOUR CODE **
         #######################################################################
 
-
+        # Apply preprocessor to x and y, since it's training, we put True
         X, Y = self._preprocessor(x, y, training=True)
         dataset = torch.utils.data.TensorDataset(X, Y)
+        
         # The DataLoader create “minibatches” and reshuffle the data at every epoch to reduce model overfitting
         loader = torch.utils.data.DataLoader(dataset, batch_size=self.bs, shuffle=True)
 
@@ -203,7 +203,8 @@ class Regressor:
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-
+        
+        # Apply preprocessor to x and y, since it's training, we put True
         X, _ = self._preprocessor(x, y=None, training = False) # Do not forget
         
         #"eval" mode in Pytorch = stop the dropout and batch normalization layers when evaluating and not training
@@ -238,6 +239,7 @@ class Regressor:
         #                       ** START OF YOUR CODE **
         #######################################################################
 
+        # Apply preprocessor to x and y, since it's not training, we put False
         X, _ = self._preprocessor(x, y=y, training = False) # Do not forget
         # Set to eval mode
         self.model.eval()
@@ -285,12 +287,18 @@ def perform_hyperparameter_search(X_train, X_val, y_train, y_val):
     best_params = None
     best_model = None
 
+    #hyper paramaters, train models and keep the best one
     for lr in [2e-2,3e-3]:
         for bs in [64]:
             for nb_epoch in [500]:
                 print(f"Training with lr={lr}, bs={bs}, nb_epoch={nb_epoch}")
+                #initialise
                 model = Regressor(X_train, lr=lr, bs=bs, nb_epoch=nb_epoch)
+                
+                #fit to the training data
                 model.fit(X_train, y_train)
+                
+                #evaluate on the evaluation dataset
                 mse= model.score(X_val, y_val)
                 if mse < best_score:
                     best_score = mse

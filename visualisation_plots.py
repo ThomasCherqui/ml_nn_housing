@@ -13,7 +13,7 @@ from sklearn.preprocessing import LabelBinarizer, StandardScaler
 
 
 class Regressor:
-    def __init__(self, x, lr=1e-4, bs=64, nb_epoch=150):
+    def __init__(self, x, lr=1e-4, bs=64, nb_epoch=200):
         self.x_scaler = StandardScaler()
         self.y_scaler = StandardScaler()
         self.lb = LabelBinarizer()
@@ -147,36 +147,36 @@ def perform_hyperparameter_search(X_train, X_val, y_train, y_val):
     all_histories = []
     val_metrics_list = []
 
-    for lr in [0.02, 0.003]:
-        for bs in [64]:
-                print(f"Training with lr={lr}, bs={bs}")
+    for lr in [0.02, 0.002,0.0002]:
+        for bs in [64,128]:
+            print(f"Training with lr={lr}, bs={bs}")
 
-                model = Regressor(X_train, lr=lr, bs=bs)
-                model.fit(X_train, y_train)
+            model = Regressor(X_train, lr=lr, bs=bs)
+            model.fit(X_train, y_train)
 
-                # Predict on validation set
-                y_pred = model.predict(X_val).flatten()
-                y_true = y_val.values.flatten()
+            # Predict on validation set
+            y_pred = model.predict(X_val).flatten()
+            y_true = y_val.values.flatten()
 
-                mse = mean_squared_error(y_true, y_pred)
-                rmse = np.sqrt(mse)
-                r2 = r2_score(y_true, y_pred)
+            mse = mean_squared_error(y_true, y_pred)
+            rmse = np.sqrt(mse)
+            r2 = r2_score(y_true, y_pred)
 
-                label = f"lr={lr}, bs={bs}"
-                val_metrics_list.append({
-                    "configuration": label,
-                    "MSE": mse,
-                    "RMSE": rmse,
-                    "R2": r2
-                })
+            label = f"lr={lr}, bs={bs}"
+            val_metrics_list.append({
+                "configuration": label,
+                "MSE": mse,
+                "RMSE": rmse,
+                "R2": r2
+            })
 
-                print(f"Validation metrics for {label}: MSE={mse:.2f}, RMSE={rmse:.2f}, R2={r2:.4f}")
-                all_histories.append((label, model.train_mse_history))
+            print(f"Validation metrics for {label}: MSE={mse:.2f}, RMSE={rmse:.2f}, R2={r2:.4f}")
+            all_histories.append((label, model.train_mse_history))
 
-                if mse < best_score:
-                    best_score = mse
-                    best_params = {'lr': lr, 'bs': bs}
-                    best_model = model
+            if mse < best_score:
+                best_score = mse
+                best_params = {'lr': lr, 'bs': bs}
+                best_model = model
 
     # Plot training curves
     plt.figure(figsize=(10, 6))
