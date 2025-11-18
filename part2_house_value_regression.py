@@ -10,7 +10,7 @@ from sklearn.preprocessing import LabelBinarizer, StandardScaler
 
 class Regressor:
 
-    def __init__(self, lr=1e-4, bs=64,nb_epoch = 80):
+    def __init__(self, x, lr=1e-4, bs=64,nb_epoch = 80):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -33,9 +33,10 @@ class Regressor:
         self.y_scaler = StandardScaler()
         self.lb = LabelBinarizer()
         # Determine input size from the dataframe
-        self.input_size = 13
-        self.output_size = 1  # regression output
-        
+        x, _ = self._preprocessor(x, training = True)
+        self.input_size = 13 if x is None else X.shape[1]
+        self.output_size = 1
+
         # Hyperparameters of the NN (default values if None)
         self.lr = lr
         self.bs = bs
