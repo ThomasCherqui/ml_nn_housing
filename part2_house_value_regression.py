@@ -8,10 +8,9 @@ import torch.optim as optim
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.preprocessing import LabelBinarizer, StandardScaler
 
-
 class Regressor:
 
-    def __init__(self, x, lr=1e-4, bs=64,nb_epoch = 80):
+    def __init__(self, x = None, lr=1e-4, bs=64,nb_epoch = 80):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -28,14 +27,17 @@ class Regressor:
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
+        
         # initialise the standard scaler
         self.x_scaler = StandardScaler()
         self.y_scaler = StandardScaler()
         self.lb = LabelBinarizer()
         # Determine input size from the dataframe
-        self.input_size = 13
-        self.output_size = 1  # regression output
-        
+        X, _ = self._preprocessor(x, training=True)
+        self.input_size = 13 if x is None else X.shape[1]
+
+        self.output_size = 1
+
         # Hyperparameters of the NN (default values if None)
         self.lr = lr
         self.bs = bs
@@ -83,31 +85,35 @@ class Regressor:
         #                       ** START OF YOUR CODE **
         #######################################################################
 
+        x = x.copy()
+        if y is not None : 
+            y = y.copy()
+        
         # Separate the columns (numerical and categorical)
         num_cols = x.select_dtypes(include=[np.number]).columns.tolist()
 
         # Fill missing numeric values with the median value if training, with zero if not
         if training:
-            x[num_cols] = x[num_cols].fillna(x[num_cols].median())
+            x.loc[:, num_cols] = x[num_cols].fillna(x[num_cols].median())
             y = y.fillna(y.median()) if y is not None else None
             
         else:
-            x[num_cols] = x[num_cols].fillna(0)
+            x.loc[:, num_cols] = x[num_cols].fillna(0)
             y = y.fillna(0) if y is not None else None
 
         # Fill missing categorical values (cat_col) with the None value
         # One-hot encoding for the categorical values if it's training - and if it is not apply the same mapping      
         cat_col = 'ocean_proximity'
         if training:
-            x[cat_col] = x[cat_col].fillna(x[cat_col].mode()[0])
+            x.loc[:, cat_col] = x[cat_col].fillna(x[cat_col].mode()[0])
             # Fit encoder
             self.lb.fit(x[cat_col].astype(str))
         else:
             # Replace missing values
-            x[cat_col] = x[cat_col].fillna("None")
+            x.loc[:, cat_col] = x[cat_col].fillna("None")
             # Replace unseen values
             known = set(self.lb.classes_)
-            x[cat_col] = x[cat_col].apply(lambda v: v if v in known else "None")
+            x.loc[:, cat_col] = x[cat_col].apply(lambda v: v if v in known else "None")
 
         encoded = self.lb.transform(x[cat_col].astype(str))
         x = x.drop(columns=[cat_col])
@@ -198,7 +204,7 @@ class Regressor:
         #                       ** START OF YOUR CODE **
         #######################################################################
 
-        X, _ = self._preprocessor(x, training = False) # Do not forget
+        X, _ = self._preprocessor(x, y=None, training = False) # Do not forget
         
         #"eval" mode in Pytorch = stop the dropout and batch normalization layers when evaluating and not training
         self.model.eval()
@@ -232,7 +238,7 @@ class Regressor:
         #                       ** START OF YOUR CODE **
         #######################################################################
 
-        X, _ = self._preprocessor(x, y = y, training = False) # Do not forget
+        X, _ = self._preprocessor(x, y=y, training = False) # Do not forget
         # Set to eval mode
         self.model.eval()
         
@@ -241,7 +247,6 @@ class Regressor:
             preds = self.model(X)
             # Convert to numpy
             preds = preds.numpy()
-            y = y.numpy()
 
             # Inverse-transform
             preds = self.y_scaler.inverse_transform(preds)
@@ -302,7 +307,7 @@ def example_main():
     # Feel free to use another CSV reader tool
     # But remember that LabTS tests take Pandas DataFrame as inputs
     data = pd.read_csv("housing.csv") 
-
+    ("loaded succefully")
     # Splitting input and output
     X = data.loc[:, data.columns != output_label]
     y = data.loc[:, [output_label]]
@@ -317,14 +322,15 @@ def example_main():
     best_params, best_model = perform_hyperparameter_search(X_train, X_val, y_train, y_val)
     print(f"Best hyperparameters found: {best_params}")
     regressor = best_model
+
     save_regressor(regressor)
 
     # Evaluate on train and test data
-    mse_train = regressor.score(X_train, y_train)
-    mse_test = regressor.score(X_test, y_test)
+    mse_train = np.sqrt(regressor.score(X_train, y_train))
+    mse_test = np.sqrt(regressor.score(X_test, y_test))
 
-    print(f"\nTrain MSE: {mse_train:.4f}")
-    print(f"Test MSE: {mse_test:.4f}\n")
+    print(f"\nTrain RMSE: {mse_train:.4f}")
+    print(f"Test RMSE: {mse_test:.4f}\n")
 
 
 if __name__ == "__main__":

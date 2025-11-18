@@ -1,3 +1,0 @@
-Juste changed the init of the multilayer to take into account identity function
-
-changed size of b
