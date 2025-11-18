@@ -7,20 +7,10 @@ import torch.nn as nn
 import torch.optim as optim
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.preprocessing import LabelBinarizer, StandardScaler
-import logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    filename='debug.log',  # Nom du fichier de log
-    filemode='w'  # Écraser le fichier à chaque exécution
-)
-def log(message):
-    logging.info(message)
-
 
 class Regressor:
 
-    def __init__(self, x, lr=1e-4, bs=64,nb_epoch = 80):
+    def __init__(self, lr=1e-4, bs=64,nb_epoch = 80):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -322,14 +312,14 @@ def example_main():
        X , y, test_size=0.1, random_state=42
     ) 
     X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.25, random_state=42)
-    log("split done")
+
     # Find best hyperparameters
     best_params, best_model = perform_hyperparameter_search(X_train, X_val, y_train, y_val)
     print(f"Best hyperparameters found: {best_params}")
     regressor = best_model
-    log("found the good params")
+
     save_regressor(regressor)
-    log("regressor save")
+
     # Evaluate on train and test data
     mse_train = np.sqrt(regressor.score(X_train, y_train))
     mse_test = np.sqrt(regressor.score(X_test, y_test))
