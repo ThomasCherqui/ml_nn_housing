@@ -10,7 +10,7 @@ from sklearn.preprocessing import LabelBinarizer, StandardScaler
 
 class Regressor:
 
-    def __init__(self, x, lr=1e-4, bs=64,nb_epoch = 80):
+    def __init__(self, x = None, lr=1e-4, bs=64,nb_epoch = 80):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -33,8 +33,7 @@ class Regressor:
         self.y_scaler = StandardScaler()
         self.lb = LabelBinarizer()
         # Determine input size from the dataframe
-        x, _ = self._preprocessor(x, training = True)
-        self.input_size = 13 if x is None else X.shape[1]
+        self.input_size = 13 
         self.output_size = 1
 
         # Hyperparameters of the NN (default values if None)
@@ -84,6 +83,9 @@ class Regressor:
         #                       ** START OF YOUR CODE **
         #######################################################################
 
+        x = x.copy()
+        y = y.copy()
+        
         # Separate the columns (numerical and categorical)
         num_cols = x.select_dtypes(include=[np.number]).columns.tolist()
 
@@ -199,7 +201,7 @@ class Regressor:
         #                       ** START OF YOUR CODE **
         #######################################################################
 
-        X, _ = self._preprocessor(x, training = False) # Do not forget
+        X, _ = self._preprocessor(x, y=None, training = False) # Do not forget
         
         #"eval" mode in Pytorch = stop the dropout and batch normalization layers when evaluating and not training
         self.model.eval()
