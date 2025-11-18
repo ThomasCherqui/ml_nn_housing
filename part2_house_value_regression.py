@@ -33,7 +33,9 @@ class Regressor:
         self.y_scaler = StandardScaler()
         self.lb = LabelBinarizer()
         # Determine input size from the dataframe
-        self.input_size = 13 
+        X, _ = self._preprocessor(x, training=True)
+        self.input_size = 13 if x is None else X.shape[1]
+
         self.output_size = 1
 
         # Hyperparameters of the NN (default values if None)
