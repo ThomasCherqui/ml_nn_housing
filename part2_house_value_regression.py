@@ -1,13 +1,17 @@
-import torch
 import pickle
+
 import numpy as np
 import pandas as pd
-from part1_nn_lib import MultiLayerNetwork, Trainer
+import torch
+import torch.nn as nn
+import torch.optim as optim
 from sklearn.model_selection import GridSearchCV, train_test_split
+from sklearn.preprocessing import LabelBinarizer, StandardScaler
+
 
 class Regressor:
 
-    def __init__(self, x, lr=1e-3, bs=16, nb_epoch = 100):
+    def __init__(self, x, lr=1e-4, bs=64,nb_epoch = 80):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -24,97 +28,112 @@ class Regressor:
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-
+        # initialise the standard scaler
+        self.x_scaler = StandardScaler()
+        self.y_scaler = StandardScaler()
+        self.lb = LabelBinarizer()
+        # Determine input size from the dataframe
+        self.input_size = 13
+        self.output_size = 1  # regression output
+        
+        # Hyperparameters of the NN (default values if None)
         self.lr = lr
         self.bs = bs
         self.nb_epoch = nb_epoch
-        self.network = None
+        
+        # Initialisation for the feedforward neural network
+        self.model = nn.Sequential(
+            nn.Linear(self.input_size, 64),
+            nn.ReLU(),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, self.output_size)
+        )
+        
+        # Initiliase the optimizer and the loss function
+        self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
+        self.loss_fn = nn.MSELoss() #it is a regression
+        
+        #
 
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
 
-    def _preprocessor(self, x, y=None, training=False):
-        """
-        Preprocess input of the network and return NumPy arrays.
+    def _preprocessor(self, x, y = None, training = False):
+        """ 
+        Preprocess input of the network.
+          
+        Arguments:
+            - x {pd.DataFrame} -- Raw input array of shape 
+                (batch_size, input_size).
+            - y {pd.DataFrame} -- Raw target array of shape (batch_size, 1).
+            - training {boolean} -- Boolean indicating if we are training or 
+                testing the model.
 
-        - Fill missing numeric values
-        - One-hot encode categorical columns
-        - Scale numeric features only
-        - Ensure training and test have the same columns
-        """
-        from sklearn.preprocessing import LabelBinarizer, StandardScaler
-
-        # Convert to DataFrame if needed
-        x_df = pd.DataFrame(x) if isinstance(x, np.ndarray) else x.copy()
-        y_array = np.array(y, dtype=float) if y is not None else None
-
-        # Fill missing numeric values
-        if training:
-            self.fill_values_ = x_df.mean(numeric_only=True)
-        x_df = x_df.fillna(self.fill_values_)
-
-        # Separate numeric and categorical columns
-        num_cols = x_df.select_dtypes(include=[np.number]).columns.tolist()
-        cat_cols = x_df.select_dtypes(exclude=[np.number]).columns.tolist()
-
-        # Handle categorical variables
-        encoded_dfs = []
-        if cat_cols:
-            if training:
-                self.label_binarizers_ = {}
-            for col in cat_cols:
-                if training:
-                    lb = LabelBinarizer()
-                    lb.fit(x_df[col].astype(str))
-                    self.label_binarizers_[col] = lb
-                else:
-                    lb = self.label_binarizers_[col]
-                encoded = lb.transform(x_df[col].astype(str))
-                encoded_df = pd.DataFrame(
-                    encoded,
-                    columns=[f"{col}_{cls}" for cls in lb.classes_],
-                    index=x_df.index
-                )
-                encoded_dfs.append(encoded_df)
-        x_categorical = pd.concat(encoded_dfs, axis=1) if encoded_dfs else pd.DataFrame(index=x_df.index)
-
-        # Scale numeric features only
-        if training:
-            self.num_cols_ = num_cols
-            self.scaler_ = StandardScaler()
-            x_numeric_scaled = pd.DataFrame(
-                self.scaler_.fit_transform(x_df[self.num_cols_]),
-                columns=self.num_cols_,
-                index=x_df.index
-            )
-        else:
-            x_numeric_scaled = pd.DataFrame(
-                self.scaler_.transform(x_df.reindex(columns=self.num_cols_, fill_value=0)),
-                columns=self.num_cols_,
-                index=x_df.index
-            )
-
-        # Align one-hot columns with training
-        if training:
-            self.ohe_cols_ = x_categorical.columns.tolist()
-        else:
-            x_categorical = x_categorical.reindex(columns=self.ohe_cols_, fill_value=0)
-
-        # Concatenate numeric and categorical features
-        x_final = pd.concat([x_numeric_scaled, x_categorical], axis=1)
-
-        # Save CSV only once during training
-        if training and not hasattr(self, "_saved_preprocessed_csv"):
-            pd.DataFrame(x_final).to_csv("X_preprocessed.csv", index=False)
-            if y is not None:
-                pd.DataFrame(y_array).to_csv("Y_preprocessed.csv", index=False)
-            self._saved_preprocessed_csv = True
-
-        return np.array(x_final, dtype=float), y_array
-
+        Returns:
+            - {torch.tensor} or {numpy.ndarray} -- Preprocessed input array of
+              size (batch_size, input_size). The input_size does not have to be the same as the input_size for x above.
+            - {torch.tensor} or {numpy.ndarray} -- Preprocessed target array of
+              size (batch_size, 1).
             
+        """
 
+        #######################################################################
+        #                       ** START OF YOUR CODE **
+        #######################################################################
+
+        # Separate the columns (numerical and categorical)
+        num_cols = x.select_dtypes(include=[np.number]).columns.tolist()
+
+        # Fill missing numeric values with the median value if training, with zero if not
+        if training:
+            x[num_cols] = x[num_cols].fillna(x[num_cols].median())
+            y = y.fillna(y.median()) if y is not None else None
+            
+        else:
+            x[num_cols] = x[num_cols].fillna(0)
+            y = y.fillna(0) if y is not None else None
+
+        # Fill missing categorical values (cat_col) with the None value
+        # One-hot encoding for the categorical values if it's training - and if it is not apply the same mapping      
+        cat_col = 'ocean_proximity'
+        if training:
+            x[cat_col] = x[cat_col].fillna(x[cat_col].mode()[0])
+            # Fit encoder
+            self.lb.fit(x[cat_col].astype(str))
+        else:
+            # Replace missing values
+            x[cat_col] = x[cat_col].fillna("None")
+            # Replace unseen values
+            known = set(self.lb.classes_)
+            x[cat_col] = x[cat_col].apply(lambda v: v if v in known else "None")
+
+        encoded = self.lb.transform(x[cat_col].astype(str))
+        x = x.drop(columns=[cat_col])
+        
+        # Scale the X and Y - keep track of the Scaler for the post-training preprocessing
+        if training:
+            x = self.x_scaler.fit_transform(x)
+            y = self.y_scaler.fit_transform(y) if y is not None else None
+        
+        else:
+            x = self.x_scaler.transform(x)
+            y = self.y_scaler.transform(y) if y is not None else None
+        
+        #Concatenate the scaled numerical columns and the encoded categorical columns
+        x = np.concatenate([x, encoded], axis=1)
+        
+        #Convert the DataFrames to torch.tensor - if y empty, return None
+        X = torch.tensor(x, dtype=torch.float32)
+        Y = torch.tensor(y, dtype=torch.float32) if y is not None else None
+        
+        return X,Y
+        #######################################################################
+        #                       ** END OF YOUR CODE **
+        #######################################################################
+
+        
     def fit(self, x, y):
         """
         Regressor training function
@@ -128,32 +147,38 @@ class Regressor:
             self {Regressor} -- Trained model.
 
         """
-        # Preprocessing
-        X, Y = self._preprocessor(x, y=y, training=True)
 
-        # Define input size AFTER preprocessing
-        self.input_size = X.shape[1]
-        self.output_size = 1
+        #######################################################################
+        #                       ** START OF YOUR CODE **
+        #######################################################################
 
-        # Initialize the NN network once the data is preprocessed
-        self.network = MultiLayerNetwork(
-            input_dim=self.input_size,
-            neurons=[32, 16, self.output_size],
-            activations=["relu", "relu", "identity"]
-        )
 
-        # Training
-        self.trainer = Trainer(
-            network=self.network,
-            batch_size=self.bs,
-            nb_epoch=self.nb_epoch,
-            learning_rate=self.lr,
-            loss_fun="mse",
-            shuffle_flag=True
-        )
-        self.trainer.train(X, Y)
+        X, Y = self._preprocessor(x, y, training=True)
+        dataset = torch.utils.data.TensorDataset(X, Y)
+        # The DataLoader create “minibatches” and reshuffle the data at every epoch to reduce model overfitting
+        loader = torch.utils.data.DataLoader(dataset, batch_size=self.bs, shuffle=True)
+
+        self.model.train()
+        for epoch in range(self.nb_epoch):
+            epoch_loss = 0
+            for xb, yb in loader:
+                # forward
+                preds = self.model(xb)
+                loss = self.loss_fn(preds, yb)
+                
+                # backward & optimization
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
+                
+                #keep track of the loss for each epoch
+                epoch_loss += loss.item()
+            print(f"Epoch {epoch+1}/{self.nb_epoch}, Loss: {epoch_loss/len(loader):.6f}")
         return self
 
+        #######################################################################
+        #                       ** END OF YOUR CODE **
+        #######################################################################
 
             
     def predict(self, x):
@@ -173,10 +198,18 @@ class Regressor:
         #                       ** START OF YOUR CODE **
         #######################################################################
 
-        X, _ = self._preprocessor(x, training=False)
-        predictions = self.network.forward(X)
+        X, _ = self._preprocessor(x, training = False) # Do not forget
         
-        return np.array(predictions)
+        #"eval" mode in Pytorch = stop the dropout and batch normalization layers when evaluating and not training
+        self.model.eval()
+        with torch.no_grad():
+            preds = self.model(X)
+        
+        #Re-scale the predictions using the correct StandardScaler()
+        preds = preds.numpy()
+        preds = self.y_scaler.inverse_transform(preds)
+        return preds
+
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -199,27 +232,26 @@ class Regressor:
         #                       ** START OF YOUR CODE **
         #######################################################################
 
-        X, Y = self._preprocessor(x, y = y, training = False) # Do not forget
-        #To avoid callin predict and RE-process the data
-        y_pred = self.network.forward(X)
+        X, _ = self._preprocessor(x, y = y, training = False) # Do not forget
+        # Set to eval mode
+        self.model.eval()
+        
+        # Compute MSE
+        with torch.no_grad():
+            preds = self.model(X)
+            # Convert to numpy
+            preds = preds.numpy()
+            y = y.numpy()
 
-        # Compute Mean Squared Error (MSE)
-        mse = np.mean((Y - y_pred) ** 2)
+            # Inverse-transform
+            preds = self.y_scaler.inverse_transform(preds)
 
-        # Compute Mean Absolute Error (MAE)
-        mae = np.mean(np.abs(Y - y_pred))
-
-        # Compute R-squared (R²)
-        ss_res = np.sum((Y - y_pred) ** 2)
-        ss_tot = np.sum((Y - np.mean(Y)) ** 2)
-        R2 = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0.0
-
-        return mse, mae, R2
-
+            mse = np.mean((y - preds)**2)
+            return mse
+    
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
-        
 
 
 def save_regressor(trained_model): 
@@ -243,59 +275,18 @@ def load_regressor():
     return trained_model
 
 
-
-def perform_hyperparameter_search(X_train, y_train): 
-    # Ensure to add whatever inputs you deem necessary to this function
-    """
-    Performs a hyper-parameter for fine-tuning the regressor implemented 
-    in the Regressor class.
-
-    Arguments:
-        Add whatever inputs you need.
-        
-    Returns:
-        The function should return your optimised hyper-parameters. 
-
-    """
-
-    #######################################################################
-    #                       ** START OF YOUR CODE **
-    #######################################################################
-
-
-    NN_model = Regressor(X_train)
-
-    parameter_grid = {
-        'lr': [1e-4, 3e-4, 1e-3, 3e-3, 1e-2],
-        'bs': [16, 32, 64, 128],
-        'epochs':[80, 90, 100]
-    }
-
-    param_grid = GridSearchCV(NN_model, parameter_grid)
-
-    param_grid.fit(X_train, y_train)
-
-
-    return param_grid.best_params_, parameter_grid.best_estimator_, parameter_grid.cv_results
-
-    #######################################################################
-    #                       ** END OF YOUR CODE **
-    #######################################################################
-
-
-def gridsearch(X_train, X_val, y_train, y_val):
+def perform_hyperparameter_search(X_train, X_val, y_train, y_val):
     best_score = float('inf')
     best_params = None
     best_model = None
-#, 3e-4, 1e-3, 3e-3, 1e-2
-#, 32, 64, 128
-#, 90, 100
-    for lr in [1e-4]:
-        for bs in [16, 32, 64]:
-            for nb_epoch in [80]:
+
+    for lr in [2e-2,3e-3]:
+        for bs in [64]:
+            for nb_epoch in [500]:
+                print(f"Training with lr={lr}, bs={bs}, nb_epoch={nb_epoch}")
                 model = Regressor(X_train, lr=lr, bs=bs, nb_epoch=nb_epoch)
                 model.fit(X_train, y_train)
-                mse, _, _ = model.score(X_val, y_val)
+                mse= model.score(X_val, y_val)
                 if mse < best_score:
                     best_score = mse
                     best_params = {'lr': lr, 'bs': bs, 'nb_epoch': nb_epoch}
@@ -303,43 +294,38 @@ def gridsearch(X_train, X_val, y_train, y_val):
 
     return best_params, best_model
 
-def main():
+def example_main():
+
     output_label = "median_house_value"
 
-    # Load data
-    data = pd.read_csv("housing.csv")
+    # Use pandas to read CSV data as it contains various object types
+    # Feel free to use another CSV reader tool
+    # But remember that LabTS tests take Pandas DataFrame as inputs
+    data = pd.read_csv("housing.csv") 
 
-    # Split input/output
-    X = data.drop(columns=[output_label])
-    y = data[[output_label]]
+    # Splitting input and output
+    X = data.loc[:, data.columns != output_label]
+    y = data.loc[:, [output_label]]
 
-    # Train / test split
+    # Train/ val/ test split
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
+       X , y, test_size=0.1, random_state=42
+    ) 
+    X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.25, random_state=42)
 
-    # Further split training for validation
-    X_train_main, X_val, y_train_main, y_val = train_test_split(
-        X_train, y_train, test_size=0.2, random_state=42
-    )
+    # Find best hyperparameters
+    best_params, best_model = perform_hyperparameter_search(X_train, X_val, y_train, y_val)
+    print(f"Best hyperparameters found: {best_params}")
+    regressor = best_model
+    save_regressor(regressor)
 
-    # --- Train best model with gridsearch ---
-    best_params, best_regressor = gridsearch(
-        X_train_main, X_val, y_train_main, y_val
-    )
+    # Evaluate on train and test data
+    mse_train = regressor.score(X_train, y_train)
+    mse_test = regressor.score(X_test, y_test)
 
-    # Save model
-    save_regressor(best_regressor)
-    print('best parameters: ', best_params)
-    # --- Metrics ---
-    # Validation metrics (optional)
-    val_mse, val_mae, val_r2 = best_regressor.score(X_val, y_val)
-    print(f"Validation - MSE: {val_mse:.4f}, MAE: {val_mae:.4f}, R²: {val_r2:.4f}")
-
-    # Test metrics (final evaluation)
-    test_mse, test_mae, test_r2 = best_regressor.score(X_test, y_test)
-    print(f"Test       - MSE: {test_mse:.4f}, MAE: {test_mae:.4f}, R²: {test_r2:.4f}")
+    print(f"\nTrain MSE: {mse_train:.4f}")
+    print(f"Test MSE: {mse_test:.4f}\n")
 
 
 if __name__ == "__main__":
-    main()
+    example_main()
