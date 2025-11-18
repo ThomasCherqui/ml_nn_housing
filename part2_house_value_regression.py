@@ -84,7 +84,8 @@ class Regressor:
         #######################################################################
 
         x = x.copy()
-        y = y.copy()
+        if y is not None : 
+            y = y.copy()
         
         # Separate the columns (numerical and categorical)
         num_cols = x.select_dtypes(include=[np.number]).columns.tolist()
