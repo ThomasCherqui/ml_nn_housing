@@ -241,10 +241,7 @@ class Regressor:
             preds = self.model(X)
             # Convert to numpy
             preds = preds.numpy()
-<<<<<<< HEAD
             y = y.to_numpy()
-=======
->>>>>>> 70f9fdea1af3e00f560f605f532c751fd5a2c769
 
             # Inverse-transform
             preds = self.y_scaler.inverse_transform(preds)
