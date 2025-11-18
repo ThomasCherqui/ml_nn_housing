@@ -178,6 +178,9 @@ def perform_hyperparameter_search(X_train, X_val, y_train, y_val):
                     best_params = {'lr': lr, 'bs': bs}
                     best_model = model
 
+    return best_params, best_model, val_metrics_list, all_histories
+
+def plot_training_loss(all_histories):
     # Plot training curves
     plt.figure(figsize=(10, 6))
     sns.set(style="whitegrid")
@@ -187,12 +190,9 @@ def perform_hyperparameter_search(X_train, X_val, y_train, y_val):
     plt.ylabel("Training MSE")
     plt.title("Training MSE per Epoch for All Hyperparameter Configurations")
     plt.legend()
-    plt.savefig("training_mse_curves.png")
+    plt.savefig("visualisations/training_mse_curves.png")
     plt.close()
-
-    return best_params, best_model, val_metrics_list
-
-
+    
 def example_main():
     output_label = "median_house_value"
     data = pd.read_csv("housing.csv")
@@ -203,8 +203,9 @@ def example_main():
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=42)
     X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.25, random_state=42)
 
-    best_params, best_model, val_metrics_list = perform_hyperparameter_search(X_train, X_val, y_train, y_val)
-
+    best_params, best_model, val_metrics_list, all_histories = perform_hyperparameter_search(X_train, X_val, y_train, y_val)
+    plot_training_loss(all_histories)
+    
     print("\nValidation metrics for all configurations:")
     for metrics in val_metrics_list:
         print(metrics)
