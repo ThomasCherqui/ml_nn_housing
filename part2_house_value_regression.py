@@ -92,7 +92,7 @@ class Regressor:
             y = y.fillna(y.median()) if y is not None else None
             
         else:
-            x[num_cols] = x[num_cols].fillna(0)
+            x.loc[:, num_cols] = x[num_cols].fillna(0)
             y = y.fillna(0) if y is not None else None
 
         # Fill missing categorical values (cat_col) with the None value
@@ -104,10 +104,10 @@ class Regressor:
             self.lb.fit(x[cat_col].astype(str))
         else:
             # Replace missing values
-            x[cat_col] = x[cat_col].fillna("None")
+            x.loc[:, cat_col] = x[cat_col].fillna("None")
             # Replace unseen values
             known = set(self.lb.classes_)
-            x[cat_col] = x[cat_col].apply(lambda v: v if v in known else "None")
+            x.loc[:, cat_col] = x[cat_col].apply(lambda v: v if v in known else "None")
 
         encoded = self.lb.transform(x[cat_col].astype(str))
         x = x.drop(columns=[cat_col])
