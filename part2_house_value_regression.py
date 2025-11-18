@@ -233,7 +233,7 @@ class Regressor:
         #                       ** START OF YOUR CODE **
         #######################################################################
 
-        X, _ = self._preprocessor(x, y=None, training = False) # Do not forget
+        X, _ = self._preprocessor(x, y=y, training = False) # Do not forget
         # Set to eval mode
         self.model.eval()
         
@@ -242,7 +242,6 @@ class Regressor:
             preds = self.model(X)
             # Convert to numpy
             preds = preds.numpy()
-            y = y.to_numpy()
 
             # Inverse-transform
             preds = self.y_scaler.inverse_transform(preds)
