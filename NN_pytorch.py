@@ -82,28 +82,33 @@ class Regressor:
         #                       ** START OF YOUR CODE **
         #######################################################################
 
-        # Separate the columns
+        # Separate the columns (numerical and categorical)
         num_cols = x.select_dtypes(include=[np.number]).columns.tolist()
-        #cat_cols = x.select_dtypes(exclude=[np.number]).columns.tolist()
 
-        # Fill missing numeric values with the mean value if training, with zero if not
+        # Fill missing numeric values with the median value if training, with zero if not
         if training:
-            x[num_cols] = x[num_cols].fillna(x[num_cols].mean())
-            y = y.fillna(y.mean()) if y is not None else None
+            x[num_cols] = x[num_cols].fillna(x[num_cols].median())
+            y = y.fillna(y.median()) if y is not None else None
             
         else:
             x[num_cols] = x[num_cols].fillna(0)
             y = y.fillna(0) if y is not None else None
 
-        # Fill missing categorical values with the -majoritaire- value
-        
-        # One-hot encoding for the categorical values if it's training - and if it is not apply the same mapping
+        # Fill missing categorical values (cat_col) with the None value
+        # One-hot encoding for the categorical values if it's training - and if it is not apply the same mapping      
         cat_col = 'ocean_proximity'
         if training:
-            self.lb.fit(x[cat_col].astype(str))         
+            x[cat_col] = x[cat_col].fillna(x[cat_col].mode()[0])
+            # Fit encoder
+            self.lb.fit(x[cat_col].astype(str))
+        else:
+            # Replace missing values
+            x[cat_col] = x[cat_col].fillna("None")
+            # Replace unseen values
+            known = set(self.lb.classes_)
+            x[cat_col] = x[cat_col].apply(lambda v: v if v in known else "None")
 
         encoded = self.lb.transform(x[cat_col].astype(str))
-        
         x = x.drop(columns=[cat_col])
         
         # Scale the X and Y - keep track of the Scaler for the post-training preprocessing
@@ -115,14 +120,12 @@ class Regressor:
             x = self.x_scaler.transform(x)
             y = self.y_scaler.transform(y) if y is not None else None
         
+        #Concatenate the scaled numerical columns and the encoded categorical columns
         x = np.concatenate([x, encoded], axis=1)
         
         #Convert the DataFrames to torch.tensor - if y empty, return None
         X = torch.tensor(x, dtype=torch.float32)
-        if y is not None:
-            Y = torch.tensor(y, dtype=torch.float32)
-        else:
-            Y = None
+        Y = torch.tensor(y, dtype=torch.float32) if y is not None else None
         
         return X,Y
         #######################################################################
@@ -230,14 +233,11 @@ class Regressor:
         # Set to eval mode
         self.model.eval()
         
-        #DO WE WANT MSE OR R2?
+        # Compute MSE
         with torch.no_grad():
             preds = self.model(X)
-            ss_res = torch.sum((Y - preds) ** 2)
-            ss_tot = torch.sum((Y - torch.mean(Y)) ** 2)
-            r2 = 1 - ss_res / ss_tot
-        return r2.item()
-    
+            mse = torch.mean((Y - preds) ** 2)
+        return mse.item()
     
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -299,19 +299,12 @@ def example_main():
     X = data.loc[:, data.columns != output_label]
     y = data.loc[:, [output_label]]
 
-    # Training
-    # This example trains on the whole available dataset. 
-    # You probably want to separate some held-out data 
-    # to make sure the model isn't overfitting
-    
     # Train/ val/ test split
     X_train, X_test, y_train, y_test = train_test_split(
        X , y, test_size=0.2, random_state=42
     ) 
     X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.25, random_state=42)
-    
 
-    
     # Find best hyperparameters
     best_params, best_model = perform_hyperparameter_search(X_train, X_val, y_train, y_val)
     print(f"Best hyperparameters found: {best_params}")
