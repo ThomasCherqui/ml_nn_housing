@@ -232,7 +232,7 @@ class Regressor:
         #                       ** START OF YOUR CODE **
         #######################################################################
 
-        X, _ = self._preprocessor(x, y = y, training = False) # Do not forget
+        X, _ = self._preprocessor(x, y=None, training = False) # Do not forget
         # Set to eval mode
         self.model.eval()
         
@@ -241,7 +241,10 @@ class Regressor:
             preds = self.model(X)
             # Convert to numpy
             preds = preds.numpy()
+<<<<<<< HEAD
             y = y.to_numpy()
+=======
+>>>>>>> 70f9fdea1af3e00f560f605f532c751fd5a2c769
 
             # Inverse-transform
             preds = self.y_scaler.inverse_transform(preds)
@@ -320,11 +323,11 @@ def example_main():
     save_regressor(regressor)
 
     # Evaluate on train and test data
-    mse_train = regressor.score(X_train, y_train)
-    mse_test = regressor.score(X_test, y_test)
+    mse_train = np.sqrt(regressor.score(X_train, y_train))
+    mse_test = np.sqrt(regressor.score(X_test, y_test))
 
-    print(f"\nTrain MSE: {mse_train:.4f}")
-    print(f"Test MSE: {mse_test:.4f}\n")
+    print(f"\nTrain RMSE: {mse_train:.4f}")
+    print(f"Test RMSE: {mse_test:.4f}\n")
 
 
 if __name__ == "__main__":
