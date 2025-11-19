@@ -9,7 +9,7 @@ from sklearn.preprocessing import LabelBinarizer, StandardScaler
 
 class Regressor:
 
-    def __init__(self, x = None, lr=1e-4, bs=64,nb_epoch = 80):
+    def __init__(self, x = None, lr=1e-4, bs=64,nb_epoch = 200):
         """ 
         Initialise the model.
         
@@ -284,22 +284,21 @@ def perform_hyperparameter_search(X_train, X_val, y_train, y_val):
     best_model = None
 
     #hyper paramaters, train models and keep the best one
-    for lr in [2e-2,3e-3]:
-        for bs in [64]:
-            for nb_epoch in [500]:
-                print(f"Training with lr={lr}, bs={bs}, nb_epoch={nb_epoch}")
-                #initialise
-                model = Regressor(X_train, lr=lr, bs=bs, nb_epoch=nb_epoch)
-                
-                #fit to the training data
-                model.fit(X_train, y_train)
-                
-                #evaluate on the evaluation dataset
-                mse= model.score(X_val, y_val)
-                if mse < best_score:
-                    best_score = mse
-                    best_params = {'lr': lr, 'bs': bs, 'nb_epoch': nb_epoch}
-                    best_model = model
+    for lr in [2e-4,2e-3,2e-2]:
+        for bs in [64,128]:
+            print(f"Training with lr={lr}, bs={bs}")
+            #initialise
+            model = Regressor(X_train, lr=lr, bs=bs)
+            
+            #fit to the training data
+            model.fit(X_train, y_train)
+            
+            #evaluate on the evaluation dataset
+            mse= model.score(X_val, y_val)
+            if mse < best_score:
+                best_score = mse
+                best_params = {'lr': lr, 'bs': bs}
+                best_model = model
 
     return best_params, best_model
 
@@ -326,11 +325,13 @@ def example_main():
     save_regressor(regressor)
 
     # Evaluate on train and test data
-    mse_train = np.sqrt(regressor.score(X_train, y_train))
-    mse_test = np.sqrt(regressor.score(X_test, y_test))
+    mse_train = regressor.score(X_train, y_train)
+    mse_test = regressor.score(X_test, y_test)
+    rmse_train = np.sqrt(mse_train)
+    rmse_test = np.sqrt(mse_test)
 
-    print(f"\nTrain RMSE: {mse_train:.4f}")
-    print(f"Test RMSE: {mse_test:.4f}\n")
+    print(f"\nTrain RMSE: {rmse_train:.4f}", f"\nTrain MSE: {mse_train:.4f}")
+    print(f"Test RMSE: {rmse_test:.4f}\n", f"Test MSE: {mse_test:.4f}\n")
 
 
 if __name__ == "__main__":

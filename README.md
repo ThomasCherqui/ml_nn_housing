@@ -36,7 +36,7 @@ Running `python part1_nn_lib.py` executes the exact experiment described in the 
   - StandardScaler applied separately to `X` and `y`; this yielded faster convergence and lets us rescale predictions back to dollars.
 - **Model**: MLP `13 → 64 → 32 → 1` with ReLU activations. This size was the best compromise between capacity and overfitting on our validation split.
 - **Metric choice**: We explicitly chose **Mean Squared Error** as both training loss (`nn.MSELoss`) and evaluation metric because the coursework rubric emphasised a regression score. We also report RMSE (square root of MSE) for interpretability.
-- **Optimisation**: We grid-searched learning rate, batch size, and epochs (see `perform_hyperparameter_search`) and selected the configuration with the lowest validation MSE.
+- **Optimisation**: We grid-searched learning rate and batch size (see `perform_hyperparameter_search`) and selected the configuration with the lowest validation MSE.
 
 
 
