@@ -98,10 +98,9 @@ class Regressor:
             x.loc[:, num_cols] = x[num_cols].fillna(0)
             y = y.fillna(0) if y is not None else None
 
-        # Fill missing categorical values (cat_col) with the most frequent values
-        # One-hot encoding for the categorical values if it's training - and if it is not apply the same mapping      
+        # Fill missing categorical values (cat_col) with None
+        # One-hot encoding for the categorical values if it's training - and if it is not, apply the same mapping      
         if training:
-            x.loc[:, cat_col] = x[cat_col].fillna(x[cat_col].mode()[0])
             # Fit encoder
             self.lb.fit(x[cat_col].astype(str))
         else:
