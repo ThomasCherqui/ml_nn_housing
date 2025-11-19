@@ -1,21 +1,18 @@
 import pickle
-
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from sklearn.model_selection import GridSearchCV, train_test_split
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelBinarizer, StandardScaler
 
 class Regressor:
 
     def __init__(self, x = None, lr=1e-4, bs=64,nb_epoch = 80):
-        # You can add any input parameters you need
-        # Remember to set them with a default value for LabTS tests
         """ 
         Initialise the model.
-          
+        
         Arguments:
             - x {pd.DataFrame} -- Raw input data of shape 
                 (batch_size, input_size), used to compute the size 
@@ -28,7 +25,7 @@ class Regressor:
         #                       ** START OF YOUR CODE **
         #######################################################################
         
-        # initialise the standard scaler
+        # Initialise the standard scaler
         self.x_scaler = StandardScaler()
         self.y_scaler = StandardScaler()
         self.lb = LabelBinarizer()
@@ -52,9 +49,10 @@ class Regressor:
             nn.Linear(32, self.output_size)
         )
         
-        # Initiliase the optimizer and the loss function
+        # Initialise the optimizer and the loss function
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
         self.loss_fn = nn.MSELoss() #it is a regression
+        
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -90,7 +88,8 @@ class Regressor:
         
         # Separate the columns (numerical and categorical)
         num_cols = x.select_dtypes(include=[np.number]).columns.tolist()
-
+        cat_col = 'ocean_proximity'
+        
         # Fill missing numeric values with the median value if training, with zero if not
         if training:
             x.loc[:, num_cols] = x[num_cols].fillna(x[num_cols].median())
@@ -99,12 +98,9 @@ class Regressor:
             x.loc[:, num_cols] = x[num_cols].fillna(0)
             y = y.fillna(0) if y is not None else None
 
-        # Fill missing categorical values (cat_col) with the None value
-        # One-hot encoding for the categorical values if it's training - and if it is not apply the same mapping 
-             
-        cat_col = 'ocean_proximity'
+        # Fill missing categorical values (cat_col) with None
+        # One-hot encoding for the categorical values if it's training - and if it is not, apply the same mapping      
         if training:
-            x.loc[:, cat_col] = x[cat_col].fillna(x[cat_col].mode()[0])
             # Fit encoder
             self.lb.fit(x[cat_col].astype(str))
         else:
@@ -250,7 +246,7 @@ class Regressor:
             # Convert to numpy
             preds = preds.numpy()
 
-            # Inverse-transform
+            # Inverse-transform the predictions to calculate the MSE
             preds = self.y_scaler.inverse_transform(preds)
 
             mse = np.mean((y - preds)**2)
@@ -310,12 +306,9 @@ def perform_hyperparameter_search(X_train, X_val, y_train, y_val):
 def example_main():
 
     output_label = "median_house_value"
-
-    # Use pandas to read CSV data as it contains various object types
-    # Feel free to use another CSV reader tool
-    # But remember that LabTS tests take Pandas DataFrame as inputs
     data = pd.read_csv("housing.csv") 
     ("loaded succefully")
+    
     # Splitting input and output
     X = data.loc[:, data.columns != output_label]
     y = data.loc[:, [output_label]]
@@ -326,11 +319,10 @@ def example_main():
     ) 
     X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.25, random_state=42)
 
-    # Find best hyperparameters
+    # Find best hyperparameters and best model
     best_params, best_model = perform_hyperparameter_search(X_train, X_val, y_train, y_val)
     print(f"Best hyperparameters found: {best_params}")
     regressor = best_model
-
     save_regressor(regressor)
 
     # Evaluate on train and test data
